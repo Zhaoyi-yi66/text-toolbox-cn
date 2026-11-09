@@ -1,0 +1,14 @@
+{
+  "name": "text-toolbox-cn",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/validate.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.132.0"
+  }
+}
+
