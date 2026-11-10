@@ -157,7 +157,8 @@ textarea.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
   .app{padding:0 12px 48px}
   header{padding:18px 0 14px}
   .badge{display:none}
-  textarea{height:240px;font-size:13px}
+  /* 输入框字号必须 ≥16px，否则手机聚焦输入时浏览器会自动放大页面 */
+  textarea{height:240px;font-size:16px}
   .score-row{gap:14px}
   .ring{width:96px;height:96px}
   .ring-inner{inset:9px}
@@ -268,6 +269,7 @@ textarea.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
         <button class="btn" id="btnXhs">小红书排版</button>
         <button class="btn" id="btnXhsShuffle" hidden>换一批表情</button>
         <button class="btn" id="btnXhsRestore" hidden>还原</button>
+        <button class="btn" id="copyAction">复制文案</button>
         <span style="font-size:11.8px;color:var(--muted)">快捷键 Ctrl / ⌘ + Enter</span>
       </div>
       <div class="hint">
@@ -675,6 +677,11 @@ $('btnXhsRestore').addEventListener('click', function(){
   $('cleanOutput').value = xhsBase;
   resetXhs();
   toast('已还原');
+});
+$('copyAction').addEventListener('click', function(){
+  const t = $('cleanOutput').value;
+  if (!t.trim()){ toast('还没有可复制的内容'); return; }
+  copyText(t);
 });
 $('swapToInput').addEventListener('click', function(){
   if (!$('cleanOutput').value) return;
