@@ -273,7 +273,7 @@ textarea.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
         <span style="font-size:11.8px;color:var(--muted)">快捷键 Ctrl / ⌘ + Enter</span>
       </div>
       <div class="hint">
-        改了选项会自动重算。<b>「合并被硬断开的句子」</b>专治微信、PDF 复制后一句话被拆成好几行的情况 —— 会按标点判断，不会把标题和列表拼坏。<b>「清除 Markdown 标记」</b>只去符号、留文字：** 加粗、~~ 删除线、行首的 # 标题符和 &gt; 引用符、--- 分隔线，代码块里的内容不受影响。<b>「小红书排版」</b>给序号、列表行配标记表情（数字序号变成 1️⃣ 2️⃣），正文只稀疏点缀几个表情、不会每行都加，表情放行首还是行尾也是随机的；不满意点「换一批表情」，表情和位置都会重新随机换一轮，也可以直接在结果里手动改。
+        改了选项会自动重算。<b>「合并被硬断开的句子」</b>专治微信、PDF 复制后一句话被拆成好几行的情况 —— 会按标点判断，不会把标题和列表拼坏。<b>「清除 Markdown 标记」</b>只去符号、留文字：** 加粗、~~ 删除线、行首的 # 标题符和 &gt; 引用符、--- 分隔线，代码块里的内容不受影响。<b>「小红书排版」</b>会识别美食、旅行、职场、学习、好物、情绪等内容，再从对应主题中搭配表情；正文只做稀疏点缀，不会每行都加。想换风格可点「换一批表情」，表情和位置都会重新组合，也可以直接在结果里手动改。
       </div>
     </div>
   </section>
@@ -371,6 +371,7 @@ const $ = id => document.getElementById(id);
 const toastEl = $('toast');
 let toastTimer;
 let xhsBase = null;
+let xhsLastResult = '';
 function toast(msg){
   toastEl.textContent = msg;
   toastEl.classList.add('show');
@@ -510,19 +511,56 @@ function cleanText(text, o){
 
 /* ---------------- 小红书排版 ---------------- */
 const XHS_POOLS = {
-  title: ['✨','🌟','🔥','💡','📌','🎯','💫','⭐️','🍀'],
-  body:  ['🌿','🍃','🌸','🫧','☁️','🌷','🧸','💌','🪴','💛','🤍','🌾'],
-  list:  ['✅','🔸','🌟','⭐️','📍','💡','🌼','🔶','🎯'],
-  end:   ['💕','🥰','🙌','✨','🎉','💖','😊','🫶']
+  title: ['✨','🌟','🔥','💡','📌','🎯','💫','⭐️','🪄','🔔','🧩','💎','🧡','🌈','📝','🔍','🪧','🗂️'],
+  body:  ['🌿','🍃','🌸','🫧','☁️','🌷','🧸','💌','🪴','🌾','🪻','🌱','🍂','🕊️','🪶','🦋','🪺','🎐','🫙','🧺','🪵','🕯️'],
+  list:  ['✅','🔸','📍','💡','🔶','🎯','▫️','🔖','🟠','🟡','🟢','🟣','🧷','🗒️','📎','🔹','➰','〰️'],
+  end:   ['💕','🥰','🙌','✨','🎉','💖','😊','🫶','🤗','💐','🎊','👏','💗','🌙','🍀','🧡','🤍','💜','💙','❤️‍🔥']
 };
+
+const XHS_THEMES = [
+  {re: /美食|吃|餐|饭|菜|零食|甜品|蛋糕|面包|咖啡|奶茶|火锅|烘焙|探店|味道/, pool: ['🍜','🍲','🥘','🍱','🍰','🧁','🍓','🥑','🥐','☕','🧋','🥢','🍽️','🍳','🧇','🍪']},
+  {re: /旅行|旅游|出发|打卡|景点|酒店|民宿|攻略|城市|海边|露营|度假|行程|风景/, pool: ['✈️','🧳','🗺️','📸','🏕️','⛺','🏝️','🌊','⛰️','🚗','🚞','🏨','🌅','🛶','🧭','🎒']},
+  {re: /穿搭|衣服|裙|鞋|包包|配饰|时尚|显瘦|通勤装|外套|裤子|颜色搭配/, pool: ['👗','👒','👟','👜','🧥','🕶️','🧢','👖','👚','🪞','🧣','⌚','🩰','🪡']},
+  {re: /护肤|美妆|口红|粉底|面膜|妆容|防晒|香水|皮肤|彩妆|卸妆|精华/, pool: ['💄','🪞','🧴','🫧','🧖‍♀️','🌹','🧼','🛁','💅','🎀','🪮','🧖','🌺','🍑']},
+  {re: /工作|职场|上班|同事|领导|面试|简历|效率|会议|项目|加班|副业|创业/, pool: ['💼','📊','📋','🗓️','🖇️','🖥️','⌨️','📈','🧑‍💻','⏰','🗃️','🧠','🪜','🏷️']},
+  {re: /学习|读书|考试|考研|考公|英语|笔记|知识|课程|复习|作业|学校|写作/, pool: ['📚','📖','✏️','📝','🎓','🧠','🔖','📒','🖊️','🧮','🏫','📐','💯','🗓️']},
+  {re: /手机|电脑|数码|软件|网站|工具|相机|耳机|键盘|平板|AI|人工智能|科技/, pool: ['📱','💻','⌨️','🖱️','🎧','📷','🔋','⚙️','🧑‍💻','🖥️','🤖','🛰️','💾','🔌']},
+  {re: /家居|装修|房间|收纳|清洁|厨房|卧室|客厅|好物|开箱|购物|推荐|种草/, pool: ['🏠','🛋️','🪴','🧺','🧹','🧽','🛒','📦','🎁','🛍️','🪑','🛏️','🫙','🧸']},
+  {re: /健身|运动|跑步|瑜伽|减脂|健康|睡眠|饮食|体重|锻炼|养生|力量/, pool: ['🏃','🏋️','🧘','🥗','💪','👟','⏱️','💧','🫀','🚴','🏊','🍎','🌞','😴']},
+  {re: /妈妈|宝宝|孩子|育儿|亲子|幼儿园|母婴|孕期|家庭|爸爸|儿童/, pool: ['👶','🍼','🧸','🎈','🧩','👨‍👩‍👧','🛝','🌈','🪁','👣','🐣','🍭','🫶','🏡']},
+  {re: /猫|狗|宠物|毛孩子|铲屎|喵|汪|萌宠|小动物/, pool: ['🐱','🐶','🐾','🦴','🐕','🐈','🐰','🦜','🐹','🧶','🥕','🪶','🏡','💛']},
+  {re: /赚钱|省钱|理财|存钱|预算|工资|收入|消费|价格|优惠|折扣|便宜/, pool: ['💰','💳','🧾','🏦','📈','🪙','💵','🧮','🏷️','🎟️','🛒','📊','💸','🔐']},
+  {re: /爱情|恋爱|喜欢|心动|约会|结婚|婚姻|友情|朋友|闺蜜|关系|情绪|治愈/, pool: ['💞','💗','💌','🫶','🌹','🫂','🎀','💐','🥂','🌙','🕯️','🦋','🩷','🤍']},
+  {re: /提醒|注意|避雷|千万|不要|错误|风险|踩坑|警告|重要|必看/, pool: ['⚠️','🚨','❗','⛔','🔔','📣','🛑','🔍','🧯','🆘','❕','🧐']},
+  {re: /方法|技巧|步骤|教程|建议|经验|总结|干货|指南|秘诀|清单|重点/, pool: ['🧠','🧩','📝','🗒️','🧭','🔑','🛠️','📚','💡','🎯','🪜','🧷','📌','🔍']}
+];
 const XHS_KEYCAP = {'1':'1️⃣','2':'2️⃣','3':'3️⃣','4':'4️⃣','5':'5️⃣','6':'6️⃣','7':'7️⃣','8':'8️⃣','9':'9️⃣','10':'🔟'};
 
+function uniqueEmoji(pool){
+  return pool.filter(function(e, i){ return pool.indexOf(e) === i; });
+}
+
+function emojiPoolFor(text, role){
+  let themed = [];
+  XHS_THEMES.forEach(function(theme){
+    if (theme.re.test(text)) themed = themed.concat(theme.pool);
+  });
+  const base = XHS_POOLS[role] || XHS_POOLS.body;
+  return uniqueEmoji(themed.length ? themed.concat(base) : base.concat(XHS_POOLS.body));
+}
+
 function pickEmoji(pool, used){
-  const avail = pool.filter(function(e){ return used.indexOf(e) === -1; });
-  const src = avail.length ? avail : pool;
+  const recent = used.slice(-10);
+  const avail = pool.filter(function(e){ return recent.indexOf(e) === -1 && used.indexOf(e) === -1; });
+  const relaxed = pool.filter(function(e){ return recent.indexOf(e) === -1; });
+  const src = avail.length ? avail : (relaxed.length ? relaxed : pool);
   const e = src[Math.floor(Math.random() * src.length)];
   used.push(e);
   return e;
+}
+
+function xhsEmoji(text, role, used){
+  return pickEmoji(emojiPoolFor(text, role), used);
 }
 
 function xhsLayout(text){
@@ -565,12 +603,12 @@ function xhsLayout(text){
     return lines.map(function(l){
       const m = l.match(numRe);
       if (m && XHS_KEYCAP[m[1]]) return XHS_KEYCAP[m[1]] + ' ' + l.slice(m[0].length);
-      if (listRe.test(l)) return pickEmoji(XHS_POOLS.list, used) + ' ' + l.replace(listRe, '');
+      if (listRe.test(l)) return xhsEmoji(l, 'list', used) + ' ' + l.replace(listRe, '');
       if (/^#[^\s#]/.test(l)) return l;                        // 话题行不动
-      if (l.length <= 22 && !/[。！？!?]/.test(l)) return pickEmoji(XHS_POOLS.title, used) + ' ' + l;
+      if (l.length <= 22 && !/[。！？!?]/.test(l)) return xhsEmoji(l, 'title', used) + ' ' + l;
       if (chosen.indexOf(bodyN) !== -1){
         bodyN++;
-        const emoji = pickEmoji(XHS_POOLS.body, used);
+        const emoji = xhsEmoji(l, 'body', used);
         return Math.random() < 0.5 ? emoji + ' ' + l : l + ' ' + emoji;
       }
       bodyN++;
@@ -585,7 +623,7 @@ function xhsLayout(text){
       const seg = out[i];
       if (seg.indexOf('\u0000') === -1 && !/^#[^\s#]/.test(seg.trim())){
         const segTrim = seg.replace(/\s+$/, '');
-        if (!HAS_EMOJI.test(segTrim)) out[i] = segTrim + ' ' + pickEmoji(XHS_POOLS.end, used);
+        if (!HAS_EMOJI.test(segTrim)) out[i] = segTrim + ' ' + xhsEmoji(segTrim, 'end', used);
         break;
       }
     }
@@ -594,6 +632,13 @@ function xhsLayout(text){
   let res = out.join('\n\n');
   if (p.blocks.length) res = restoreCode(res, p.blocks);
   return res;
+}
+
+function freshXhsLayout(text){
+  let next = xhsLayout(text);
+  for (let i = 0; i < 5 && next === xhsLastResult; i++) next = xhsLayout(text);
+  xhsLastResult = next;
+  return next;
 }
 
 function readOpts(){
@@ -612,6 +657,7 @@ function readOpts(){
 
 function resetXhs(){
   xhsBase = null;
+  xhsLastResult = '';
   $('btnXhsShuffle').hidden = true;
   $('btnXhsRestore').hidden = true;
 }
@@ -662,14 +708,14 @@ $('btnXhs').addEventListener('click', function(){
   const cur = $('cleanOutput').value;
   if (!cur.trim()){ toast('先贴文本，再套小红书排版'); return; }
   if (xhsBase === null) xhsBase = cur;   // 保留原始底稿，重复点不会叠加表情
-  $('cleanOutput').value = xhsLayout(xhsBase);
+  $('cleanOutput').value = freshXhsLayout(xhsBase);
   $('btnXhsShuffle').hidden = false;
   $('btnXhsRestore').hidden = false;
   toast('已套小红书排版');
 });
 $('btnXhsShuffle').addEventListener('click', function(){
   if (xhsBase === null) return;
-  $('cleanOutput').value = xhsLayout(xhsBase);
+  $('cleanOutput').value = freshXhsLayout(xhsBase);
   toast('表情已换一批');
 });
 $('btnXhsRestore').addEventListener('click', function(){
